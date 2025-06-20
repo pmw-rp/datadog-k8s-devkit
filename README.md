@@ -86,7 +86,17 @@ EOF
 
 (Keep an eye on the Helm chart and Redpanda versions, depending on what you need.)
 
-# Building and Deploying the Datadog Integration
+# Configuration
+
+The [`conf`](conf) folder includes the following configuration files:
+
+- [`.env`](conf/.env): this is used to hold the Datadog API key
+- [`dd-values.yaml`](conf/dd-values.yaml): this is the `values.yaml` file used to install the Datadog agent in our local K8s test cluster
+- [`redpanda.yaml`](conf/redpanda.yaml): this is the Datadog configuration file
+- [`kustomization.yaml`](conf/kustomization.yaml): this defines how to produce the finalised deployment yaml
+- [`patch.yaml`](conf/patch.yaml): this defines how we need to patch the Datadog daemonset to include our development artifact
+
+# Building and Deploying
 
 ## API Key
 
@@ -109,14 +119,14 @@ The project provides a simple [`Makefile`](Makefile), in order to simplify devel
 - **deploy**: installs the Datadog agent by applying the generated yaml to a K8s cluster via `kubectl`
 - **undeploy**: uninstalls the agent via `kubectl`
 
-# Overview of the Datadog Integration
+# Overview of the Integration
 
 The agent performs two main functions:
 
 1. It renames metrics into a simpler, friendlier naming structure
 2. It filters metrics scraped from Redpanda
 
-Both of these functions are handled by ([`metrics.py`](integrations-extras/redpanda/datadog_checks/redpanda/metrics.py)).
+Both of these functions are handled by [`metrics.py`](integrations-extras/redpanda/datadog_checks/redpanda/metrics.py).
 
 ## Renaming
 
@@ -129,9 +139,9 @@ REDPANDA_APPLICATION = {
 }
 ```
 
-The renamed metrics are all put under the `redpanda` namespace, therefore `application.uptime` will become `redpanda.application.uptime` in the UI.
+The renamed metrics (`application.uptime`, etc.) are all put under the `redpanda` namespace, therefore becoming `redpanda.application.uptime` in the Datadog UI. (The namespace is defined in [`redpanda.py`](integrations-extras/redpanda/datadog_checks/redpanda/redpanda.py), `__NAMESPACE__ = 'redpanda'`).
 
-Putting this together, we see that `redpanda_application_uptime_seconds_total` is 
+Putting this together, we see that `redpanda_application_uptime_seconds_total` is renamed to `redpanda.application.uptime`.
 
 ## Filtering
 
@@ -178,13 +188,3 @@ logs:
 - type: journald
   source: redpanda
 ```
-
-## Configuration
-
-The [`conf`](conf) folder includes the following configuration files:
-
-- **[`.env`](conf/.env)**: this is used to hold the Datadog API key
-- **[`dd-values.yaml`](conf/dd-values.yaml)**: this is the `values.yaml` file used to install the Datadog agent in our local K8s test cluster
-- **[`redpanda.yaml`](conf/redpanda.yaml)**: this is the Datadog configuration file
-- **[`kustomization.yaml`](conf/kustomization.yaml)**: this defines how to produce the finalised deployment yaml
-- **[`patch.yaml`](conf/patch.yaml)**: this defines how we need to patch the Datadog daemonset to include our development artifact
