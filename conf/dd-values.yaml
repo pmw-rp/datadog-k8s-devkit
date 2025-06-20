@@ -1,0 +1,12 @@
+datadog:
+  apiKeyExistingSecret: datadog-secret
+  site: datadoghq.com
+agents:
+  volumeMounts:
+  - name: redpanda-config-volume
+    mountPath: /etc/datadog-agent/conf.d/redpanda.d
+    readOnly: true
+  volumes:
+  - name: redpanda-config-volume
+    configMap:
+      name: redpanda-dd-config

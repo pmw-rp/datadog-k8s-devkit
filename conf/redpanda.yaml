@@ -1,0 +1,7 @@
+instances:
+- openmetrics_endpoint: http://redpanda.redpanda.svc.cluster.local:9644/public_metrics
+  metric_groups:
+  - redpanda.controller
+logs:
+- type: journald
+  source: redpanda

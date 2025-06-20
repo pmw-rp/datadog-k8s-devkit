@@ -1,0 +1,11 @@
+resources:
+  - pre-deployment.yaml
+  - redpanda-datadog-wheel-configmap.yaml
+  - dd-secret.yaml
+  - redpanda-datadog-config-configmap.yaml
+
+patches:
+  - path: patch.yaml
+    target:
+      kind: DaemonSet
+      name: datadog-agent

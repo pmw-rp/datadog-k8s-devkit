@@ -1,0 +1,3 @@
+[submodule "integrations-extras"]
+	path = integrations-extras
+	url = https://github.com/redpanda-data/integrations-extras
