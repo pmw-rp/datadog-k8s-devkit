@@ -1,8 +1,23 @@
 # Redpanda Datadog Integration Development Kit
 
-This project provides a simple approach for developing the Redpanda integration for Datadog on Kubernetes.
+
+
+> Note: This project is a development kit for the Redpanda Datadog integration, NOT the integration itself.
+> 
+> This is useful for making changes to the integration, deploying for testing in local Kubernetes, and
+> building container images for beta testing in external deployments.
+> 
+> NOT FOR CUSTOMER OR PRODUCTION USE!
 
 # Prerequisites
+
+## Docker
+
+Docker is used for multiple purposes:
+- To create multi-platform images of the integration for beta testing
+- For integration testing within the Datadog tooling (which spins up a local, one-node Redpanda cluster)
+
+In my testing, I use Orbstack.
 
 ## ddev
 
@@ -12,7 +27,6 @@ tool include:
 - Python 3.12
 - pipx
 - ddev command line tool
-- Docker (used in integration testing)
 
 The process I used on Mac was as follows:
 
@@ -96,7 +110,9 @@ The [`conf`](conf) folder includes the following configuration files:
 - [`kustomization.yaml`](conf/kustomization.yaml): this defines how to produce the finalised deployment yaml
 - [`patch.yaml`](conf/patch.yaml): this defines how we need to patch the Datadog daemonset to include our development artifact
 
-# Building and Deploying
+# Testing on Local Kubernetes
+
+The project allows for testing your integration changes by adding the generated `.whl` Python wheel to the standard Datadog image - no custom image is required for testing.
 
 ## API Key
 
@@ -118,6 +134,17 @@ The project provides a simple [`Makefile`](Makefile), in order to simplify devel
 - **yaml**: generates a single yaml output file (`target/deployment.yaml`) using a combination of `kubectl`, `helm` and `kustomize` commands
 - **deploy**: installs the Datadog agent by applying the generated yaml to a K8s cluster via `kubectl`
 - **undeploy**: uninstalls the agent via `kubectl`
+
+# Building (and pushing) the Container
+
+While not required for testing locally on Kubernetes, the project includes a simple Dockerfile for building a Datadog agent image that includes the Redpanda integration for testing in external environments.
+
+## Make
+
+The project provides the following additional [`Makefile`](Makefile) targets for building and pushing the container:
+
+- **docker**: performs a multi-platform build, tagging the result with the details (image name and version) found in the [`conf/.env`](conf/.env) file
+- **push**: pushes the resulting container image to a container registry of your choosing
 
 # Overview of the Integration
 

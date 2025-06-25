@@ -1,10 +1,10 @@
-EXECUTABLES := ddev kubectl helm kustomize
+EXECUTABLES := ddev kubectl helm kustomize docker
 K := $(foreach exec,$(EXECUTABLES),\
 	$(if $(shell which $(exec)),some string,$(error "Error: command $(exec) not found in PATH - this is required for makefile to proceed")))
 
 ROOT := $(dir $(realpath $(lastword $(MAKEFILE_LIST))))
 
-.PHONY: config clean build test yaml deploy undeploy
+.PHONY: config clean build test yaml deploy undeploy docker push
 
 config:
 	ddev config set repos.extras ${ROOT}/integrations-extras
@@ -15,18 +15,18 @@ clean: config
 	ddev clean
 
 build: config
+	mkdir ${ROOT}/target || true
 	ddev release build redpanda
 
 test: config
 	ddev test redpanda
 
 yaml: build
-	mkdir ${ROOT}/target || true
 	kubectl create secret generic datadog-secret --from-literal api-key=$(API_KEY) --dry-run=client -o yaml > ${ROOT}/target/dd-secret.yaml
 	kubectl create configmap redpanda-dd-config --from-file ${ROOT}/conf/redpanda.yaml --dry-run=client -o yaml > ${ROOT}/target/redpanda-datadog-config-configmap.yaml
 	helm template datadog-agent datadog/datadog -f ${ROOT}/conf/dd-values.yaml > ${ROOT}/target/pre-deployment.yaml
 	kubectl create configmap redpanda-dd-wheel \
-		--from-file=${ROOT}/integrations-extras/redpanda/dist/datadog_redpanda-2.1.0-py2.py3-none-any.whl \
+		--from-file=${ROOT}/integrations-extras/redpanda/dist/datadog_redpanda-*-py2.py3-none-any.whl \
 		--dry-run=client -o yaml > ${ROOT}/target/redpanda-datadog-wheel-configmap.yaml
 	cp ${ROOT}/conf/patch.yaml ${ROOT}/target
 	cp ${ROOT}/conf/kustomization.yaml ${ROOT}/target
@@ -37,3 +37,11 @@ deploy: yaml
 
 undeploy: yaml
 	kubectl delete -f ${ROOT}/target/deployment.yaml
+
+docker: build
+	cp ${ROOT}/docker/Dockerfile ${ROOT}/target || true
+	cp `find ${ROOT} | grep redpanda | grep whl` ${ROOT}/target || true
+	docker buildx build --platform linux/amd64,linux/arm64 -t $(IMAGE):$(VERSION) target
+
+push: docker
+	docker push $(IMAGE):$(VERSION)
