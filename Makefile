@@ -26,7 +26,7 @@ yaml: build
 	kubectl create configmap redpanda-dd-config --from-file ${ROOT}/conf/redpanda.yaml --dry-run=client -o yaml > ${ROOT}/target/redpanda-datadog-config-configmap.yaml
 	helm template datadog-agent datadog/datadog -f ${ROOT}/conf/dd-values.yaml > ${ROOT}/target/pre-deployment.yaml
 	kubectl create configmap redpanda-dd-wheel \
-		--from-file=${ROOT}/integrations-extras/redpanda/dist/datadog_redpanda-*-py2.py3-none-any.whl \
+		--from-file=`find ${ROOT} | grep redpanda | grep whl` \
 		--dry-run=client -o yaml > ${ROOT}/target/redpanda-datadog-wheel-configmap.yaml
 	cp ${ROOT}/conf/patch.yaml ${ROOT}/target
 	cp ${ROOT}/conf/kustomization.yaml ${ROOT}/target
