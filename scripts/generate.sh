@@ -9,7 +9,7 @@ printf "done.\n"
 
 printf "Generating metadata.csv... "
 pushd ../tools/generate-metadata > /dev/null 2>&1 || exit
-go run . --input ../../data/master.csv > ../../integrations-extras/redpanda/met.csv
+go run . --input ../../data/master.csv > ../../integrations-extras/redpanda/metadata.csv
 popd > /dev/null 2>&1 || exit
 printf "done.\n"
 
