@@ -16,9 +16,12 @@ clean: config
 
 build: config
 	mkdir ${ROOT}/target || true
+	./scripts/generate.sh
 	ddev release build redpanda
 
 test: config
+	./scripts/generate.sh
+	./scripts/validate.sh
 	ddev test redpanda
 
 yaml: build

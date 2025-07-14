@@ -1,0 +1,10 @@
+url: https://docs.redpanda.com/current/reference/public-metrics-reference/
+
+regex: <h3 id="(redpanda_[a-z_]+)">
+
+excludes:
+  - redpanda_cloud_storage_anomalies
+  - redpanda_uptime_seconds_total
+
+replacements:
+  redpanda_rest_proxy_request_latency_seconds_bucket: redpanda_rest_proxy_request_latency_seconds
