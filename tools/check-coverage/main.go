@@ -124,6 +124,15 @@ func main() {
 			log.Fatalf("Error reading masterRecord: %v", err)
 		}
 
+        // Begin validation excludes
+
+        // Non-existent metric (still referenced in metadata.csv)
+    	if masterRecord[0] == "redpanda_cluster_replicas" {
+			continue
+		}
+
+        // End validation excludes
+
 		validate(masterRecord[0])
 	}
 

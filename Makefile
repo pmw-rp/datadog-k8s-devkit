@@ -22,7 +22,11 @@ build: config
 test: config
 	./scripts/generate.sh
 	./scripts/validate.sh
+	ddev validate config redpanda -s
+	ddev validate ci --sync
+	ddev validate metadata redpanda
 	ddev test redpanda
+	ddev test redpanda --fmt
 
 yaml: build
 	kubectl create secret generic datadog-secret --from-literal api-key=$(API_KEY) --dry-run=client -o yaml > ${ROOT}/target/dd-secret.yaml

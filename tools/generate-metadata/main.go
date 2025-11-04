@@ -11,7 +11,7 @@ import (
 func main() {
 
 	// Handle command line arguments
-	inputFile := flag.String("input", "../../master.csv", "path to master.csv file")
+	inputFile := flag.String("input", "../../data/master.csv", "path to master.csv file")
 	flag.Parse()
 
 	// Open the CSV file
@@ -37,13 +37,16 @@ func main() {
 
 	// Read the rest of the records
 	for {
-		record, err := reader.Read()
+		masterRecord, err := reader.Read()
 		if err == io.EOF {
 			break
 		}
 		if err != nil {
 			log.Fatalf("Error reading record: %v", err)
 		}
-		writer.Write(record[1:10])
+		if masterRecord[2] == "histogram" {
+			masterRecord[2] = "gauge"
+		}
+		writer.Write(masterRecord[1:])
 	}
 }

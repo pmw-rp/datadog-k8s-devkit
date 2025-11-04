@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"regexp"
 	"strings"
 )
 
@@ -32,13 +33,25 @@ func main() {
 	defer mp.Close()
 
 	scanner := bufio.NewScanner(mp)
-
+	var key string
 	for scanner.Scan() {
 		line := scanner.Text()
 		parts := strings.Split(line, "'")
 		n := len(parts)
 		if n == 5 {
 			metricsPyMappings[parts[1]] = &metricMapping{dd: parts[3], asserted: false}
+		} else if n == 3 {
+			if strings.HasSuffix(parts[2], "(") {
+				key = parts[1]
+			} else {
+				matched, err := regexp.Match("^\\s+'(.+)'$", []byte(line))
+				if err != nil {
+					continue
+				}
+				if matched {
+					metricsPyMappings[key] = &metricMapping{dd: parts[1], asserted: false}
+				}
+			}
 		}
 	}
 
@@ -73,6 +86,25 @@ func main() {
 		if err != nil {
 			log.Fatalf("Error reading masterRecord: %v", err)
 		}
+
+		// Begin validation excludes
+
+		// Fixing typo in previous releases (<=2.1.0)
+		if masterRecord[1] == "redpanda.schema_registry_latency_seconds" {
+			continue
+		}
+
+        // Fixing wrongly named metric in previous releases (<=2.1.0)
+		if masterRecord[1] == "redpanda.cluster.controller_log_limit_requests_dropped" {
+			continue
+		}
+
+        // Non-existent metric (still referenced in metadata.csv)
+    	if masterRecord[0] == "redpanda_cluster_replicas" {
+			continue
+		}
+
+		// End validation excludes
 
 		masterRP := masterRecord[0]
 		if masterRecord[2] == "count" && strings.HasSuffix(masterRecord[0], "_total") {

@@ -27,49 +27,22 @@ func main() {
 	}
 	defer mp.Close()
 
-	scanner := bufio.NewScanner(mp)
-
-	sb := strings.Builder{}
-	inMap := false
-	for scanner.Scan() {
-		line := scanner.Text()
-
-		if line == "INSTANCE_METRIC_GROUP_MAP = {" {
-			inMap = true
-			sb.WriteString("{")
-			continue
-		}
-		if line == "}" {
-			inMap = false
-			sb.WriteString("}")
-			continue
-		}
-		if inMap {
-			trimmed := strings.TrimSpace(line)
-
-			sb.WriteString(trimmed)
-			continue
-		}
-	}
-	j := sb.String()
-	j = strings.Replace(j, "'", "\"", -1)
-	j = strings.Replace(j, ",]", "]", -1)
-
-	m := make(map[string][]string)
-	err = json.Unmarshal([]byte(j), &m)
+	countersAndGauges, err := extractCountersAndGauges(mp, err)
 	if err != nil {
-		log.Fatalf("Could not parse map from common.py: %v", err)
+		log.Fatalf("Could not extract counters and gauges: %v", err)
+	}
+	histograms, err := extractHistograms(mp, err)
+	if err != nil {
+		log.Fatalf("Could not extract histograms: %v", err)
 	}
 
+	m := merge(countersAndGauges, histograms)
+
+	// Set the flag to false for each mapping, to indicate we've not yet seen it
 	for _, list := range m {
 		for _, item := range list {
 			commmonPyMappings[item] = false
 		}
-	}
-
-	// Check for errors during scanning
-	if err := scanner.Err(); err != nil {
-		log.Fatalf("Error reading master: %v\n", err)
 	}
 
 	// Open the master CSV master
@@ -110,16 +83,33 @@ func main() {
 		//lookups := make([]string,0)
 		dd := masterRecord[1]
 
+		// Begin validation excludes
+
+		// Fixing typo in previous releases (<=2.1.0)
+		if dd == "redpanda.schema_registry_latency_seconds" {
+			continue
+		}
+
+		// Fixing wrongly named metric in previous releases (<=2.1.0)
+		if masterRecord[1] == "redpanda.cluster.controller_log_limit_requests_dropped" {
+			continue
+		}
+
+		// Non-existent metric (still referenced in metadata.csv)
+		if masterRecord[0] == "redpanda_cluster_replicas" {
+			continue
+		}
+
+		// End validation excludes
+
 		if masterRecord[2] == "gauge" {
 			validate(dd)
 		}
 		if masterRecord[2] == "count" {
 			validate(dd + ".count")
 		}
-		if masterRecord[2] == "histogram" {
-			validate(dd + ".bucket")
-			validate(dd + ".count")
-			validate(dd + ".sum")
+		if masterRecord[2] == "histogram" || masterRecord[2] == "distribution" {
+			validate(dd)
 		}
 	}
 
@@ -128,4 +118,113 @@ func main() {
 			log.Fatalf("master.csv doesn't contain a dd metric %s that is referenced in common.py", metric)
 		}
 	}
+}
+
+func extractCountersAndGauges(mp *os.File, err error) (map[string][]string, error) {
+	mp.Seek(0, 0)
+	scanner := bufio.NewScanner(mp)
+
+	sb := strings.Builder{}
+	inMap := false
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		if line == "INSTANCE_METRIC_GROUP_MAP = {" {
+			inMap = true
+			sb.WriteString("{")
+			continue
+		}
+		if line == "}" {
+			inMap = false
+			sb.WriteString("}")
+			continue
+		}
+		if inMap {
+			trimmed := strings.TrimSpace(line)
+
+			sb.WriteString(trimmed)
+			continue
+		}
+	}
+
+	// Check for errors during scanning
+	if err := scanner.Err(); err != nil {
+		log.Fatalf("Error reading master: %v\n", err)
+	}
+
+	j := sb.String()
+	j = strings.Replace(j, "'", "\"", -1)
+	j = strings.Replace(j, ",]", "]", -1)
+	j = strings.Replace(j, ",}", "}", -1)
+	j = strings.Replace(j, "}}", "}", -1)
+
+	m := make(map[string][]string)
+	err = json.Unmarshal([]byte(j), &m)
+	if err != nil {
+		log.Fatalf("Could not parse map from common.py: %v", err)
+	}
+	return m, err
+}
+
+func extractHistograms(mp *os.File, err error) (map[string][]string, error) {
+	mp.Seek(0, 0)
+	scanner := bufio.NewScanner(mp)
+
+	sb := strings.Builder{}
+	inMap := false
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		if line == "INSTANCE_HISTOGRAM_GROUP_MAP = {" {
+			inMap = true
+			sb.WriteString("{")
+			continue
+		}
+		if line == "}" {
+			inMap = false
+			sb.WriteString("}")
+			continue
+		}
+		if inMap {
+			trimmed := strings.TrimSpace(line)
+
+			sb.WriteString(trimmed)
+			continue
+		}
+	}
+
+	// Check for errors during scanning
+	if err := scanner.Err(); err != nil {
+		log.Fatalf("Error reading master: %v\n", err)
+	}
+
+	j := sb.String()
+	j = strings.Replace(j, "'", "\"", -1)
+	j = strings.Replace(j, ",]", "]", -1)
+	j = strings.Replace(j, ",}", "}", -1)
+	j = strings.Replace(j, "}{", "{", -1)
+
+	m := make(map[string][]string)
+	err = json.Unmarshal([]byte(j), &m)
+	if err != nil {
+		log.Fatalf("Could not parse map from common.py: %v", err)
+	}
+	return m, err
+}
+
+func merge(a map[string][]string, b map[string][]string) map[string][]string {
+	merged := make(map[string][]string)
+	for k, v := range a {
+		merged[k] = v
+	}
+
+	for k, v := range b {
+		if _, ok := merged[k]; ok {
+			merged[k] = append(merged[k], v...)
+		} else {
+			merged[k] = v
+		}
+	}
+
+	return merged
 }
